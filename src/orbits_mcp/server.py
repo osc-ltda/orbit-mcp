@@ -99,7 +99,7 @@ async def whoami() -> dict:
     return {
         "userId": int(claims["sub"]),
         "email": claims.get("email"),
-        "name": f"{claims.get('firstName', '')} {claims.get('lastName', '')}".strip(),
+        "name": " ".join(filter(None, [claims.get("firstName"), claims.get("lastName")])),
         "role": claims.get("role"),
         "url": api().url,
     }

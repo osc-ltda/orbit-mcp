@@ -71,7 +71,8 @@ def whoami() -> None:
         expires = creds.get("expiresAt") or "nunca"
     else:
         expires = "desconocida (token desde ORBITS_TOKEN)"
-    print(f"Usuario: {claims.get('firstName', '')} {claims.get('lastName', '')} <{claims.get('email')}> (id {claims['sub']})")
+    name = " ".join(filter(None, [claims.get("firstName"), claims.get("lastName")]))
+    print(f"Usuario: {name + ' ' if name else ''}<{claims.get('email')}> (id {claims['sub']})")
     print(f"Rol: {claims.get('role')}")
     print(f"URL: {client.url}")
     print(f"Token expira: {expires}")
