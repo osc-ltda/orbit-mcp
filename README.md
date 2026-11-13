@@ -26,6 +26,8 @@ command = "uvx"
 args = ["--from", "git+https://github.com/osc-ltda/orbit-mcp", "orbits-mcp"]
 ```
 
+**omp**: importa solo la configuración de Claude Code y Codex. Para registrarlo directamente, agrega el mismo bloque JSON de abajo en `~/.omp/agent/mcp.json`.
+
 **Cualquier cliente stdio** (JSON):
 
 ```json
