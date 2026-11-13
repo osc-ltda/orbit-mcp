@@ -9,6 +9,8 @@ from importlib.resources import files
 from pathlib import Path
 
 from fastmcp import FastMCP
+from fastmcp.exceptions import ToolError
+from fastmcp.server.dependencies import get_access_token
 from mcp.types import ToolAnnotations
 
 from .client import ApiError, OrbitsClient, build_bundle, jwt_claims, poll_device_login, raise_for_api, start_device_login
@@ -35,11 +37,28 @@ Análisis: test_results, course_results, student_results, tag_summary y list_att
 _api: OrbitsClient | None = None
 
 
+def _remote_pat() -> str | None:
+    """PAT del usuario cuando el servidor corre en modo remoto (OAuth); None en stdio."""
+    token = get_access_token()
+    return token.token if token else None
+
+
 def api() -> OrbitsClient:
     global _api
+    if pat := _remote_pat():
+        return mcp.auth.client_for(pat)
     if _api is None or not _api.pat:  # sin token: releer por si el usuario ya hizo login
         _api = OrbitsClient()
     return _api
+
+
+def _local_files_allowed() -> None:
+    # En remoto, una ruta "local" sería del servidor: leer o escribir ahí expondría su disco.
+    if _remote_pat():
+        raise ToolError(
+            "El servidor remoto no accede a archivos locales (image_paths, save_zip_to): "
+            "envía las imágenes en `images` (base64)."
+        )
 
 
 _login_task: asyncio.Task | None = None
@@ -142,8 +161,12 @@ async def get_test(test_id: int) -> dict:
         page += 1
 
 
-async def _upload(path: str, test: dict, image_paths: dict[str, str] | None, data: dict | None = None) -> dict:
-    zip_bytes = build_bundle(test, image_paths)
+async def _upload(
+    path: str, test: dict, image_paths: dict[str, str] | None, images: dict[str, str] | None, data: dict | None = None
+) -> dict:
+    if image_paths:
+        _local_files_allowed()
+    zip_bytes = build_bundle(test, image_paths, images)
     r = await api().request("POST", path, files={"file": ("test.zip", zip_bytes, "application/zip")}, data=data)
     if r.status_code == 400 and r.headers.get("content-type", "").startswith("application/json"):
         body = r.json()
@@ -168,7 +191,9 @@ async def _upload(path: str, test: dict, image_paths: dict[str, str] | None, dat
 
 
 @mcp.tool(annotations=WRITE)
-async def import_test(course_id: int, test: dict, image_paths: dict[str, str] | None = None) -> dict:
+async def import_test(
+    course_id: int, test: dict, image_paths: dict[str, str] | None = None, images: dict[str, str] | None = None
+) -> dict:
     """Crea un test nuevo (BORRADOR, no publicado) en un curso a partir de un test.json.
 
     Lee antes orbits://docs/import-format. Si ok=false con problems, corrígelos y reintenta.
@@ -176,21 +201,25 @@ async def import_test(course_id: int, test: dict, image_paths: dict[str, str] | 
     Args:
         course_id: curso destino.
         test: contenido de test.json (formatVersion 1).
-        image_paths: imágenes a incluir, ruta en el bundle (p. ej. "images/q1.png") -> ruta local del archivo.
+        image_paths: (solo instalación local) ruta en el bundle (p. ej. "images/q1.png") -> ruta local del archivo.
+        images: ruta en el bundle (p. ej. "images/q1.png") -> contenido del archivo en base64.
     """
-    return await _upload("/test/import", test, image_paths, {"courseId": str(course_id)})
+    return await _upload("/test/import", test, image_paths, images, {"courseId": str(course_id)})
 
 
 @mcp.tool(annotations=WRITE)
-async def append_questions(test_id: int, test: dict, image_paths: dict[str, str] | None = None) -> dict:
+async def append_questions(
+    test_id: int, test: dict, image_paths: dict[str, str] | None = None, images: dict[str, str] | None = None
+) -> dict:
     """Agrega preguntas a un test existente (mismo formato test.json; solo se leen formatVersion y questionSets).
 
     Args:
         test_id: test destino.
         test: contenido de test.json.
-        image_paths: imágenes a incluir, ruta en el bundle -> ruta local del archivo.
+        image_paths: (solo instalación local) ruta en el bundle -> ruta local del archivo.
+        images: ruta en el bundle -> contenido del archivo en base64.
     """
-    return await _upload(f"/test/{test_id}/import", test, image_paths)
+    return await _upload(f"/test/{test_id}/import", test, image_paths, images)
 
 
 @mcp.tool(annotations=READ_ONLY)
@@ -199,12 +228,13 @@ async def export_test(test_id: int, save_zip_to: str | None = None) -> dict:
 
     Args:
         test_id: test a exportar.
-        save_zip_to: ruta local opcional donde guardar el .zip completo (con imágenes).
+        save_zip_to: (solo instalación local) ruta donde guardar el .zip completo (con imágenes).
     """
     r = await api().request("GET", f"/test/{test_id}/export")
     raise_for_api(r)
     result = {}
     if save_zip_to:
+        _local_files_allowed()
         path = Path(save_zip_to).expanduser()
         path.write_bytes(r.content)
         result["savedTo"] = str(path)

@@ -2,93 +2,65 @@
 
 Servidor MCP de [Orbits](https://orbits.cl). Con él, tu agente (Claude Code, Codex, omp o cualquier cliente MCP) puede crear tests y analizar resultados con **tus permisos**.
 
-## Requisito: uv
-
-Una sola vez:
-
-```sh
-curl -LsSf https://astral.sh/uv/install.sh | sh
-```
-
-(Windows: `powershell -c "irm https://astral.sh/uv/install.ps1 | iex"`.) No hace falta instalar nada más: `uvx` descarga y ejecuta `orbits-mcp` la primera vez que se usa.
+Está publicado en **`https://prod.orbits.cl/mcp`**. No necesitas instalar nada: solo agregas la URL a tu agente.
 
 ## 1. Agregarlo a tu agente
-
-Elige tu agente. El servidor queda con el nombre `orbits`.
 
 ### Claude Code
 
 ```sh
-# Disponible en todos tus proyectos
-claude mcp add orbits --scope user -- uvx --from git+https://github.com/osc-ltda/orbit-mcp orbits-mcp
-
-# o solo en el proyecto actual (crea .mcp.json, que se puede commitear)
-claude mcp add orbits --scope project -- uvx --from git+https://github.com/osc-ltda/orbit-mcp orbits-mcp
+claude mcp add --transport http --scope user orbits https://prod.orbits.cl/mcp
 ```
 
-Para comprobarlo: `claude mcp list` debe mostrar `orbits … ✔ Connected`.
+Con `--scope user` queda disponible en todos tus proyectos. Si usas `--scope project`, se agrega solo al proyecto actual, en un `.mcp.json` que puedes commitear para compartirlo con tu equipo.
 
 ### Codex
 
 ```sh
-codex mcp add orbits -- uvx --from git+https://github.com/osc-ltda/orbit-mcp orbits-mcp
+codex mcp add orbits --url https://prod.orbits.cl/mcp
+codex mcp login orbits
 ```
 
 También puedes agregarlo a mano en `~/.codex/config.toml`:
 
 ```toml
 [mcp_servers.orbits]
-command = "uvx"
-args = ["--from", "git+https://github.com/osc-ltda/orbit-mcp", "orbits-mcp"]
+url = "https://prod.orbits.cl/mcp"
 ```
-
-Para comprobarlo: `codex mcp list`.
 
 ### omp
 
-Crea `.omp/mcp.json` en la carpeta del proyecto (para que solo esté disponible ahí) o `~/.omp/agent/mcp.json` (para todos los proyectos):
+Crea `.omp/mcp.json` en la carpeta del proyecto (para usarlo solo ahí) o `~/.omp/agent/mcp.json` (para todos tus proyectos):
 
 ```json
 {
   "mcpServers": {
-    "orbits": {
-      "type": "stdio",
-      "command": "uvx",
-      "args": ["--from", "git+https://github.com/osc-ltda/orbit-mcp", "orbits-mcp"]
-    }
+    "orbits": { "type": "http", "url": "https://prod.orbits.cl/mcp" }
   }
 }
 ```
 
-Para comprobarlo: abre omp en esa carpeta y escribe `/mcp`.
+> omp también importa la configuración MCP de Claude Code y Codex. Si ya lo agregaste ahí con alcance de usuario, omp lo verá en todos tus proyectos.
 
-> omp también importa la configuración MCP de Claude Code y Codex. Si ya lo registraste con `--scope user` en alguno de ellos, omp lo verá en todos tus proyectos.
+### Otro cliente MCP (Cursor, Claude Desktop, VS Code, etc.)
 
-### Otro cliente MCP (Cursor, Claude Desktop, etc.)
-
-Usa el mismo comando stdio: `command: "uvx"`, `args: ["--from", "git+https://github.com/osc-ltda/orbit-mcp", "orbits-mcp"]`.
+Agrega un servidor MCP remoto (HTTP) con la URL `https://prod.orbits.cl/mcp`.
 
 ## 2. Iniciar sesión (una vez)
 
-En el agente, escribe **"inicia sesión en Orbits"**. En Claude Code también puedes usar `/mcp__orbits__login`.
+La primera vez que el agente usa Orbits, el cliente abre el navegador:
 
-1. Se abre el navegador en `orbits.cl/dispositivo` con un código.
-2. Inicia sesión con tu cuenta de Orbits, si no lo has hecho.
-3. Revisa el nombre del dispositivo y haz click en **Autorizar**.
+1. Inicia sesión con tu cuenta de Orbits, si no lo has hecho.
+2. Revisa el nombre del cliente que pide acceso y haz click en **Autorizar**.
+3. El navegador vuelve a tu agente y queda conectado.
 
-Listo: la sesión dura 90 días. Si el navegador no se abre (por ejemplo, el agente corre en otra máquina), el agente te muestra el enlace y el código para ingresarlo desde cualquier dispositivo.
+Si no se abre solo:
 
-También puedes iniciar sesión desde la terminal, con el mismo flujo:
+- **Claude Code:** escribe `/mcp` → `orbits` → *Authenticate*.
+- **Codex:** corre `codex mcp login orbits`.
+- **omp:** escribe `/mcp`.
 
-```sh
-uvx --from git+https://github.com/osc-ltda/orbit-mcp orbits-mcp login
-```
-
-Tu contraseña nunca pasa por la terminal ni por el agente: se guarda un token personal en `~/.config/orbits/credentials.json` (con permisos 0600). Puedes ver tus tokens y revocarlos en tu perfil de Orbits, en **Tokens de acceso**.
-
-En máquinas sin navegador o en CI, crea un token en tu perfil y úsalo con `orbits-mcp login --token orb_...` o con la variable `ORBITS_TOKEN`.
-
-Otros comandos útiles: `orbits-mcp whoami` y `orbits-mcp logout` (revoca el token y borra las credenciales locales).
+La sesión dura 90 días. Tu contraseña nunca pasa por el agente. Puedes ver y revocar los accesos en tu perfil de Orbits, en **Tokens de acceso**.
 
 ## 3. Úsalo
 
@@ -100,24 +72,37 @@ Ejemplos de lo que puedes pedirle al agente:
 
 Lo que expone:
 
-- Tools de lectura: `whoami`, `list_courses`, `course_topics`, `list_tests`, `get_test`, `export_test`, `test_results`, `course_results`, `student_results`, `tag_summary`, `list_attempts`.
-- Tools de escritura: `import_test`, `append_questions`, `set_test_published`.
-- `login`, como tool y como prompt.
-- El recurso `orbits://docs/import-format`, con el formato de los tests.
+- **Tools de lectura:** `whoami`, `list_courses`, `course_topics`, `list_tests`, `get_test`, `export_test`, `test_results`, `course_results`, `student_results`, `tag_summary`, `list_attempts`.
+- **Tools de escritura:** `import_test`, `append_questions`, `set_test_published`. Las imágenes van en `images`, en base64.
+- **Recurso** `orbits://docs/import-format`, con el formato de los tests.
 
 Los permisos son los de tu cuenta: un staff ve los resultados de los cursos donde tiene rol.
 
-## Variables de entorno
+## Alternativa: correrlo localmente
 
-- `ORBITS_URL`: URL de la API (por defecto `https://prod.orbits.cl/api/v1`). Para desarrollo local, usa `http://localhost:3000/api/v1`.
-- `ORBITS_TOKEN`: token personal (`orb_...`). Tiene prioridad sobre el archivo de credenciales.
+Esta opción sirve para desarrollo, o si quieres que el servidor lea imágenes directamente de tu disco (`image_paths`). Requiere [uv](https://docs.astral.sh/uv/).
+
+```sh
+claude mcp add orbits -- uvx --from git+https://github.com/osc-ltda/orbit-mcp orbits-mcp
+uvx --from git+https://github.com/osc-ltda/orbit-mcp orbits-mcp login   # abre el navegador; guarda el token en ~/.config/orbits
+```
+
+En Codex y omp se usa el mismo comando stdio: `uvx --from git+https://github.com/osc-ltda/orbit-mcp orbits-mcp`.
+
+Variables de entorno del modo local:
+
+- `ORBITS_URL`: URL de la API. Por defecto es `https://prod.orbits.cl/api/v1`.
+- `ORBITS_TOKEN`: token personal (`orb_...`), útil para CI o máquinas sin navegador.
 
 ## Desarrollo
 
 ```sh
-uv run orbits-mcp --help
 uv run pytest
+uv run orbits-mcp --help                 # stdio local + login/logout/whoami
+MCP_SECRET=dev MCP_PUBLIC_URL=http://localhost:8000 uv run orbits-mcp serve-http   # modo remoto (OAuth)
 ```
+
+Al publicar en `main` se construye la imagen `ghcr.io/osc-ltda/orbit-mcp:sha-<commit>`; en producción se despliega desde [orbit-ops](https://github.com/osc-ltda/orbit-ops).
 
 ## Licencia
 

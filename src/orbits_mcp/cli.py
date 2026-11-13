@@ -82,6 +82,7 @@ def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(prog="orbits-mcp", description="Servidor MCP de Orbits (stdio) y gestión de credenciales.")
     sub = parser.add_subparsers(dest="cmd")
     sub.add_parser("serve", help="ejecuta el servidor MCP por stdio (por defecto)")
+    sub.add_parser("serve-http", help="servidor MCP remoto por HTTP con OAuth (requiere MCP_SECRET)")
     p = sub.add_parser("login", help="inicia sesión en el navegador (o con un código) y guarda un token de acceso personal")
     p.add_argument("--url", help=f"URL base de la API (por defecto ORBITS_URL o {DEFAULT_URL})")
     p.add_argument("--token", help="token de acceso personal existente (orb_...), para máquinas sin navegador o CI")
@@ -95,6 +96,10 @@ def main(argv: list[str] | None = None) -> None:
             logout()
         elif args.cmd == "whoami":
             whoami()
+        elif args.cmd == "serve-http":
+            from .remote import serve
+
+            serve()
         else:
             from .server import mcp
 

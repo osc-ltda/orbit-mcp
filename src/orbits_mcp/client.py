@@ -61,8 +61,8 @@ def raise_for_api(r: httpx.Response) -> None:
     )
 
 
-def build_bundle(test: dict, image_paths: dict[str, str] | None = None) -> bytes:
-    """ZIP en memoria: test.json en la raíz + imágenes (ruta en el bundle -> archivo local)."""
+def build_bundle(test: dict, image_paths: dict[str, str] | None = None, images: dict[str, str] | None = None) -> bytes:
+    """ZIP en memoria: test.json en la raíz + imágenes (ruta en el bundle -> archivo local, o -> contenido base64)."""
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
         z.writestr("test.json", json.dumps(test, ensure_ascii=False, indent=2))
@@ -71,6 +71,11 @@ def build_bundle(test: dict, image_paths: dict[str, str] | None = None) -> bytes
             if not local.is_file():
                 raise ToolError(f"No existe la imagen local '{local}' (para '{bundle_path}')")
             z.write(local, bundle_path)
+        for bundle_path, content in (images or {}).items():
+            try:
+                z.writestr(bundle_path, base64.b64decode(content, validate=True))
+            except ValueError as e:
+                raise ToolError(f"La imagen '{bundle_path}' no es base64 válido") from e
     return buf.getvalue()
 
 
