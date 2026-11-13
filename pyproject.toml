@@ -3,6 +3,8 @@ name = "orbits-mcp"
 version = "0.1.0"
 description = "Servidor MCP de Orbits: crear tests y analizar resultados desde agentes de código"
 readme = "README.md"
+license = "GPL-3.0-or-later"
+license-files = ["LICENSE"]
 authors = [
     { name = "Francisco C. Ossa", email = "francisco@oza.cl" }
 ]
