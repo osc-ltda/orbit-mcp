@@ -118,6 +118,41 @@ Si el test tiene errores, Orbits responde con cada problema y su ubicación (`qu
 Recurso: `orbits://docs/import-format`, con el formato completo de `test.json`.
 </details>
 
+## 🛡️ Administración (solo rol ADMIN)
+
+Con una sesión de administrador, el agente también gestiona cuentas e inscripciones:
+
+| Pídele… | Qué hace |
+|---|---|
+| *"Crea estas 40 cuentas y déjalas en la tag de la Sección B"* | Detecta los repitentes (no les toca la clave), te muestra los correos nuevos y, cuando confirmas, crea e inscribe |
+| *"Dale acceso al curso de Código a los de Diagramas de este semestre"* | Asocia las tags del semestre al otro curso |
+| *"Cámbiale la clave a gfuenzalida26@…"* | Te pide confirmar y la fija sin pasar por el correo |
+| *"Borra la tag de prueba"* | Muestra cuántos alumnos y cursos pierden el acceso y espera tu confirmación |
+
+**Lo que no se puede deshacer pide confirmación**: crear cuentas (la API no tiene borrado de usuarios), cambiar claves, borrar tags o cursos y acreditar edubits retroactivos. Si tu cliente soporta *elicitation*, la pregunta te aparece directamente; si no, la tool responde `confirmation_required` con un resumen y un `confirmToken` firmado, válido 5 minutos y solo para esa acción y esos argumentos. Lo reversible (asociar o quitar tags, roles de curso, editar nombres) se ejecuta directo y devuelve cómo revertirlo.
+
+<details>
+<summary><b>Tools de administración</b></summary>
+
+| Tool | Tipo | Descripción |
+|---|---|---|
+| `find_users`, `get_user` | lectura | Usuarios de cualquier rol, con sus tags y roles de curso |
+| `list_tags`, `get_tag`, `course_access` | lectura | Tags (la inscripción), y quién accede a cada curso |
+| `create_users` | confirma | Crea cuentas en lote y las inscribe en una tag; salta las que ya existen |
+| `update_user` | escritura | Nombre, apellido, nickname o institución (devuelve los valores previos) |
+| `set_user_password` | confirma | Fija la clave de otro usuario |
+| `create_tag`, `add_students_to_tag`, `link_tag_to_course` | escritura | Inscripción |
+| `remove_students_from_tag`, `unlink_tag_from_course` | reversible | Quitan acceso |
+| `delete_tag` | confirma | Borra una tag; con `remove_associations` la vacía antes |
+| `create_course`, `update_course` | escritura | Cursos |
+| `delete_course` | confirma | Borra un curso (soft delete) |
+| `grant_course_role`, `revoke_course_role` | escritura / reversible | Roles docentes (REVIEWER, TEST_CREATOR, COURSE_MANAGER) |
+| `assign_monitor_tag`, `remove_monitor_tag` | escritura / reversible | Alumnos que ve un monitor |
+| `retroactive_awards_preview`, `retroactive_awards_execute` | lectura / confirma | Edubits que no se acreditaron |
+
+La API no permite borrar usuarios ni cambiar su email o su rol global, así que el MCP tampoco.
+</details>
+
 ## 🔐 Cómo funciona el login
 
 ```mermaid
