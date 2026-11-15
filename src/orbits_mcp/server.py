@@ -31,7 +31,13 @@ Flujo para crear tests:
 3. import_test crea el test como BORRADOR (no visible para alumnos). append_questions agrega preguntas a un test existente.
 4. Si el resultado trae ok=false con problems [{path, message}], corrige exactamente esos puntos y reintenta.
 5. set_test_published hace visible el test a los alumnos: úsalo SOLO si el usuario lo pide explícitamente.
-Análisis: test_results, course_results, student_results, tag_summary y list_attempts. Todos los ids son enteros.""",
+Análisis: test_results, course_results, student_results, tag_summary y list_attempts. Todos los ids son enteros.
+Administración (solo rol ADMIN): usuarios (find_users, get_user, create_users, update_user, set_user_password),
+inscripción por tags (list_tags, get_tag, create_tag, add_students_to_tag, remove_students_from_tag,
+link_tag_to_course, unlink_tag_from_course, delete_tag), cursos (course_access, create_course, update_course,
+delete_course), roles docentes y de monitor, y edubits retroactivos. Un alumno ve un curso si comparte una tag con él.
+Si una tool responde status=confirmation_required, NO repitas la llamada por tu cuenta: muestra el summary al
+usuario, espera su confirmación explícita y solo entonces repite la llamada con confirm_token.""",
 )
 
 _api: OrbitsClient | None = None
@@ -303,3 +309,6 @@ async def list_attempts(
             "end_date": end_date,
         },
     )
+
+
+from . import admin  # noqa: E402,F401  registra las tools de administración en `mcp`
