@@ -113,6 +113,7 @@ Si el test tiene errores, Orbits responde con cada problema y su ubicación (`qu
 | `list_tests`, `get_test`, `export_test` | lectura | Tests, preguntas con solución y bundle exportable |
 | `test_results`, `course_results`, `student_results`, `tag_summary`, `list_attempts` | lectura | Resultados y estadísticas |
 | `import_test`, `append_questions` | escritura | Crea un test (borrador) o agrega preguntas; imágenes en base64 |
+| `update_question` | escritura | Corrige enunciado, solución o dificultad de una pregunta existente |
 | `set_test_published` | destructiva | Publica o despublica un test |
 
 Recurso: `orbits://docs/import-format`, con el formato completo de `test.json`.

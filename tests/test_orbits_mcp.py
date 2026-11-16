@@ -66,6 +66,21 @@ def test_import_validation_problems_are_returned_as_result(monkeypatch):
     assert b'name="file"; filename="test.zip"' in seen["body"]
 
 
+def test_update_question_sends_only_given_fields(monkeypatch):
+    seen = {}
+
+    def handler(req: httpx.Request) -> httpx.Response:
+        if req.url.path.endswith("/auth/token"):
+            return httpx.Response(200, json={"token": fake_jwt(1), "expiresIn": 3600})
+        seen["method"], seen["path"], seen["body"] = req.method, req.url.path, json.loads(req.content)
+        return httpx.Response(200, json={"questionId": 9})
+
+    monkeypatch.setattr(server, "_api", client_with(handler))
+    asyncio.run(server.update_question(9, question_text="def f(x):\n    return x"))
+    # un null en solución o dificultad no debe viajar: la API conserva lo omitido
+    assert seen == {"method": "PUT", "path": "/api/v1/question/9", "body": {"questionText": "def f(x):\n    return x"}}
+
+
 def test_device_login_polls_until_authorized_and_saves_credentials(tmp_path, monkeypatch):
     monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
     token_info = {"id": 3, "name": "orbits-mcp@pc", "prefix": "orb_NewToken", "token": "orb_NewTokenXYZ",
