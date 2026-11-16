@@ -7,6 +7,7 @@ import time
 import zipfile
 from importlib.resources import files
 from pathlib import Path
+from typing import Literal
 
 from fastmcp import FastMCP
 from fastmcp.exceptions import ToolError
@@ -29,6 +30,7 @@ Flujo para crear tests:
 1. Antes de redactar un test lee el recurso orbits://docs/import-format (formato de test.json).
 2. Usa list_courses y course_topics para obtener el course_id y reutilizar los nombres de temas existentes.
 3. import_test crea el test como BORRADOR (no visible para alumnos). append_questions agrega preguntas a un test existente.
+   update_question corrige enunciado, solución o dificultad de una pregunta (parte del texto actual de get_test).
 4. Si el resultado trae ok=false con problems [{path, message}], corrige exactamente esos puntos y reintenta.
 5. set_test_published hace visible el test a los alumnos: úsalo SOLO si el usuario lo pide explícitamente.
 Análisis: test_results, course_results, student_results, tag_summary y list_attempts. Todos los ids son enteros.
@@ -165,6 +167,25 @@ async def get_test(test_id: int) -> dict:
         if page >= res["total_pages"]:  # PaginatedResponse de la API no usa camelCase
             return {"test": test, "questions": questions}
         page += 1
+
+
+@mcp.tool(annotations=ToolAnnotations(read_only_hint=False, destructive_hint=True, idempotent_hint=True))
+async def update_question(
+    question_id: int,
+    question_text: str | None = None,
+    step_by_step_solution: str | None = None,
+    difficulty: Literal["Easy", "Medium", "Hard"] | None = None,
+) -> dict:
+    """Corrige el enunciado, la solución o la dificultad de una pregunta existente (lo omitido no cambia).
+
+    Reemplaza el texto completo del campo: parte del valor actual (get_test) y conserva saltos de línea
+    e indentación del código. Los alumnos ven el cambio de inmediato; las notas no cambian.
+    """
+    body = {"questionText": question_text, "stepByStepSolution": step_by_step_solution, "difficulty": difficulty}
+    body = {k: v for k, v in body.items() if v is not None}
+    if not body:
+        raise ToolError("Indica al menos un campo a cambiar.")
+    return await api().call("PUT", f"/question/{question_id}", json=body)
 
 
 async def _upload(
